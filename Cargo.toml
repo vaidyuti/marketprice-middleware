@@ -1,6 +1,6 @@
 [package]
 edition = "2021"
-name = "marketprice-middleware"
+name = "marketprice"
 version = "0.1.0"
 
 [dependencies]
