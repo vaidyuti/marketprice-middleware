@@ -1,9 +1,13 @@
 use colored::Colorize;
 use rumqttc::{AsyncClient, Event, EventLoop, Incoming, MqttOptions, QoS};
-use std::time::Duration;
+use std::{collections::HashMap, time::Duration};
 use uuid::Uuid;
 
-use crate::topics::{EXPORT_BASE_PRICE_TOPIC, EXPORT_POWER_TOPIC};
+use crate::{
+    seller::Seller,
+    topics::{EXPORT_BASE_PRICE_TOPIC, EXPORT_IS_EXTERNAL_TOPIC, EXPORT_POWER_TOPIC},
+    utils,
+};
 
 /// Get the MQTT client.
 pub(crate) fn get_client() -> (AsyncClient, EventLoop) {
@@ -50,12 +54,53 @@ pub(crate) async fn run(client: AsyncClient, mut eventloop: EventLoop) {
         .subscribe(EXPORT_BASE_PRICE_TOPIC, qos)
         .await
         .unwrap();
+    client
+        .subscribe(EXPORT_IS_EXTERNAL_TOPIC, qos)
+        .await
+        .unwrap();
 
     loop {
         let event = eventloop.poll().await;
 
+        // TODO: Change to Uuid later.
+        let mut prosumers: HashMap<u32, Seller> = HashMap::new();
+
         if let Ok(Event::Incoming(Incoming::Publish(publish))) = event {
-            debug!("{:?}", publish.payload);
+            let topic = publish
+                .topic
+                .split('/')
+                .map(String::from)
+                .collect::<Vec<String>>();
+
+            let prosumer_id = topic[1].parse::<u32>().unwrap();
+            let value_topic = &topic[2];
+
+            if !prosumers.contains_key(&prosumer_id) {
+                prosumers.insert(prosumer_id, Seller::default());
+            } else {
+                // copy the object to modify.
+                let mut prosumer = prosumers.get(&prosumer_id).unwrap().clone();
+
+                match value_topic.as_str() {
+                    EXPORT_BASE_PRICE_TOPIC => {
+                        prosumer.export_base_price = utils::get_value::<f32>(&publish).unwrap();
+                        prosumers.insert(prosumer_id, prosumer);
+                    }
+                    EXPORT_POWER_TOPIC => {
+                        prosumer.export_power = utils::get_value::<f32>(&publish).unwrap();
+                        prosumers.insert(prosumer_id, prosumer);
+                    }
+                    EXPORT_IS_EXTERNAL_TOPIC => {
+                        prosumer.is_external = utils::get_value::<bool>(&publish).unwrap();
+                        prosumers.insert(prosumer_id, prosumer);
+                    }
+                    _ => {
+                        error!("Unknown topic {} ignoring.", value_topic);
+                    }
+                }
+            }
+
+            debug!("{:?} {:?}", publish.topic, publish.payload);
         }
     }
 }

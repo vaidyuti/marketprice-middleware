@@ -6,6 +6,8 @@ extern crate log;
 
 mod client;
 mod topics;
+mod seller;
+mod utils;
 
 #[tokio::main]
 async fn main() {
