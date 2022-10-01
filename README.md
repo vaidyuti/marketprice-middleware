@@ -15,7 +15,7 @@ Then `cargo run` the project.
 
 ## How to compile?
 
-Requires `cargo` to compile the binary which is avaliable along with `rust`. Make sure to use the `--release` flag for faster builds. 
+Requires `cargo` to compile the binary which is avaliable along with `rust`. Make sure to use the `--release` flag for faster builds.
 
 Optionally use the `upx` utility to make the executable even smaller.
 
@@ -25,3 +25,5 @@ cd marketprice-middleware
 cargo build --release
 upx target/release/marketprice.exe --lzma -9
 ```
+
+# ignore record if error just use err!()
